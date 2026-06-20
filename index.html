@@ -193,7 +193,7 @@ const WEEK_SEED={"Seitl. Schulter":10,"Hint. Schulter":6,"Bizeps":9,"Trizeps":9,
 
 let DAY="Schulter & Arme A";
 let log=JSON.parse(localStorage.getItem(LS_KEY)||"{}");
-let ENDPOINT=localStorage.getItem("hc_endpoint")||"";
+let ENDPOINT=localStorage.getItem("hc_endpoint")||"https://script.google.com/macros/s/AKfycbw0HCMO6ZJJ5YjrpTiQZSGJrxsX0_znisalOxuU1bCWC_p1Ikwv2BBeyGJ4YvqOq3LT/exec";
 
 function saveSet(day,exi,w,r,rir){
   const k=day+"||"+exi; const arr=(log[k]=log[k]||[]);
