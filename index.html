@@ -6,7 +6,8 @@
 <meta name="theme-color" content="#0B0E14" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>Forge · Trainingslog</title>
+<meta name="apple-mobile-web-app-title" content="Hyper-Coaching" />
+<title>Hyper-Coaching · Trainingslog</title>
 <style>
   :root{
     --bg:#0B0E14; --surface:#141925; --surface2:#1B2230; --line:rgba(255,255,255,.07);
@@ -129,6 +130,16 @@
       <div class="ic">!</div>
       <div><p class="t">Brust / Rücken auf Erhalt</p><p class="s">6 Sätze = MEV. Hält die Masse; für leichten Zuwachs bei gleichbleibender Last okay. Nicht weiter senken.</p></div>
     </div>
+    <p class="sec">Sheet-Sync</p>
+    <div class="card">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:8px;line-height:1.5;">Apps-Script-URL einfügen — danach landet jeder geloggte Satz automatisch im Google Sheet.</div>
+      <input id="endpoint" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;height:38px;background:var(--surface2);border:1px solid var(--line);border-radius:9px;color:var(--tx);padding:0 10px;font-size:13px;outline:none;margin-bottom:8px;"/>
+      <div style="display:flex;gap:8px;">
+        <button onclick="saveEndpoint()" style="flex:1;height:38px;border:0;border-radius:9px;background:var(--acc);color:#fff;font-weight:500;cursor:pointer;">Speichern</button>
+        <button onclick="syncAll()" style="flex:1;height:38px;border:1px solid var(--line2);border-radius:9px;background:transparent;color:var(--tx);cursor:pointer;">Alle syncen</button>
+      </div>
+      <div id="syncStatus" style="font-size:12px;color:var(--mut);margin-top:8px;"></div>
+    </div>
   </div>
 
   <nav>
@@ -182,11 +193,19 @@ const WEEK_SEED={"Seitl. Schulter":10,"Hint. Schulter":6,"Bizeps":9,"Trizeps":9,
 
 let DAY="Schulter & Arme A";
 let log=JSON.parse(localStorage.getItem(LS_KEY)||"{}");
+let ENDPOINT=localStorage.getItem("hc_endpoint")||"";
 
 function saveSet(day,exi,w,r,rir){
-  const k=day+"||"+exi; (log[k]=log[k]||[]).push({w:+w,r:+r,rir:+rir,e:RIR_EPLEY(w,r,rir)});
-  localStorage.setItem(LS_KEY,JSON.stringify(log)); renderLog();
+  const k=day+"||"+exi; const arr=(log[k]=log[k]||[]);
+  const s={w:+w,r:+r,rir:+rir,e:RIR_EPLEY(w,r,rir),synced:false}; arr.push(s);
+  localStorage.setItem(LS_KEY,JSON.stringify(log));
+  if(ENDPOINT){syncOne(payloadFor(day,exi,arr.length,s));s.synced=true;localStorage.setItem(LS_KEY,JSON.stringify(log));}
+  renderLog();
 }
+function payloadFor(day,exi,setNo,s){const e=PLAN[day][exi];return{token:"hc-9f3a7c21",datum:new Date().toISOString().slice(0,10),tag:day,uebung:e.n,muskel:e.m,satz:setNo,gewicht:s.w,reps:s.r,rir:s.rir,e1rm:s.e,notiz:e.stretch?"Stretch":""};}
+function syncOne(p){if(!ENDPOINT)return;try{fetch(ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)});}catch(err){}}
+function saveEndpoint(){ENDPOINT=document.getElementById("endpoint").value.trim();localStorage.setItem("hc_endpoint",ENDPOINT);document.getElementById("syncStatus").textContent=ENDPOINT?"Sync aktiv ✓":"Keine URL gesetzt";}
+function syncAll(){if(!ENDPOINT){document.getElementById("syncStatus").textContent="Erst URL speichern.";return;}let n=0;Object.keys(log).forEach(k=>{const p=k.split("||");log[k].forEach((s,idx)=>{if(!s.synced){syncOne(payloadFor(p[0],+p[1],idx+1,s));s.synced=true;n++;}});});localStorage.setItem(LS_KEY,JSON.stringify(log));document.getElementById("syncStatus").textContent=n+" Sätze gesynct ✓";}
 function renderDaypick(){
   document.getElementById("daypick").innerHTML=Object.keys(PLAN).map(d=>
     `<button class="chip ${d===DAY?'on':''}" onclick="DAY='${d}';renderDaypick();renderLog();document.querySelector('.h1').textContent='${d}'">${d.replace('Schulter & Arme','S&A')}</button>`).join("");
@@ -251,6 +270,7 @@ function show(v){
   if(v==="tr")renderVol();
 }
 renderDaypick();renderLog();
+if(document.getElementById("endpoint")){document.getElementById("endpoint").value=ENDPOINT;document.getElementById("syncStatus").textContent=ENDPOINT?"Sync aktiv ✓":"";}
 </script>
 </body>
 </html>
