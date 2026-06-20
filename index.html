@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0B0E14" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Forge · Trainingslog</title>
+<style>
+  :root{
+    --bg:#0B0E14; --surface:#141925; --surface2:#1B2230; --line:rgba(255,255,255,.07);
+    --line2:rgba(255,255,255,.12); --tx:#EAecef; --mut:#8B93A7; --mut2:#5C6479;
+    --acc:#7C83F7; --acc-d:#2A2F52; --green:#34D399; --amber:#FBBF24; --red:#F87171; --blue:#60A5FA;
+    --r:14px; --r-s:10px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;background:var(--bg);color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  body{padding:0 0 92px;max-width:520px;margin:0 auto;min-height:100vh}
+  .wrap{padding:0 16px}
+  header{padding:22px 16px 10px;display:flex;justify-content:space-between;align-items:flex-start}
+  .hi{font-size:13px;color:var(--mut);margin:0}
+  .h1{font-size:22px;font-weight:600;margin:2px 0 0;letter-spacing:-.3px}
+  .ring{width:46px;height:46px;border-radius:50%;background:var(--surface2);
+    display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--acc);border:1px solid var(--line)}
+  .seg{display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;margin:14px 0 6px}
+  .seg button{flex:1;border:0;background:transparent;color:var(--mut);font-size:13px;font-weight:500;
+    padding:9px;border-radius:9px;cursor:pointer;transition:.15s}
+  .seg button.on{background:var(--surface2);color:var(--tx)}
+  .daypick{display:flex;gap:8px;overflow-x:auto;padding:8px 16px 4px;scrollbar-width:none}
+  .daypick::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;background:var(--surface);border:1px solid var(--line);color:var(--mut);
+    padding:8px 14px;border-radius:999px;font-size:13px;font-weight:500;cursor:pointer}
+  .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:10px 0}
+  .ex-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .ex-n{font-size:15px;font-weight:600;margin:0}
+  .tag{font-size:11px;font-weight:500;color:var(--acc);background:var(--acc-d);padding:3px 8px;border-radius:6px;display:inline-block;margin-top:6px}
+  .tgt{font-size:12px;color:var(--mut);text-align:right;white-space:nowrap}
+  .sets{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 2px}
+  .setchip{background:var(--surface2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--tx)}
+  .setchip b{color:var(--acc);font-weight:600}
+  .setchip small{color:var(--mut2)}
+  .steps{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;margin-top:12px;align-items:end}
+  .fl{display:flex;flex-direction:column;gap:4px}
+  .fl label{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;padding-left:2px}
+  .step{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--line);border-radius:9px}
+  .step button{width:30px;height:38px;border:0;background:transparent;color:var(--mut);font-size:18px;cursor:pointer}
+  .step input{width:100%;border:0;background:transparent;color:var(--tx);text-align:center;font-size:15px;font-weight:600;
+    -moz-appearance:textfield;padding:0}
+  .step input::-webkit-outer-spin-button,.step input::-webkit-inner-spin-button{-webkit-appearance:none}
+  .logbtn{height:40px;width:46px;border:0;border-radius:9px;background:var(--acc);color:#fff;font-size:20px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center}
+  .logbtn:active{transform:scale(.95)}
+  .sumbar{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r);padding:12px 14px;margin:10px 0}
+  .sumbar .v{font-size:18px;font-weight:600}
+  .sumbar .l{font-size:12px;color:var(--mut)}
+  .vol-row{margin:14px 0}
+  .vol-top{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px}
+  .vol-top .m{font-weight:500}
+  .vol-top .c{color:var(--mut)}
+  .track{position:relative;height:8px;background:var(--surface2);border-radius:6px;overflow:hidden}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+  .mk{position:absolute;top:-3px;bottom:-3px;width:1.5px;background:var(--mut2)}
+  .lbl{font-size:11px;color:var(--mut2);margin-top:4px}
+  .stat2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+  .mini{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px}
+  .mini .l{font-size:12px;color:var(--mut);margin-bottom:6px}
+  .mini .v{font-size:22px;font-weight:600}
+  .mini .v small{font-size:12px;color:var(--green);font-weight:500;margin-left:4px}
+  .flag{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1px solid var(--line);
+    border-left:3px solid var(--green);border-radius:var(--r);padding:13px;margin:12px 0}
+  .flag.warn{border-left-color:var(--amber)}
+  .flag .ic{font-size:18px;line-height:1.2}
+  .flag .t{font-size:13px;font-weight:600;margin:0}
+  .flag .s{font-size:12px;color:var(--mut);margin:3px 0 0;line-height:1.5}
+  .sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin:20px 2px 2px}
+  nav{position:fixed;bottom:0;left:0;right:0;background:rgba(11,14,20,.9);backdrop-filter:blur(14px);
+    border-top:1px solid var(--line);display:flex;max-width:520px;margin:0 auto;padding:8px 0 22px}
+  nav button{flex:1;border:0;background:transparent;color:var(--mut2);font-size:11px;display:flex;flex-direction:column;
+    align-items:center;gap:3px;cursor:pointer}
+  nav button.on{color:var(--acc)}
+  nav .gl{font-size:21px;line-height:1}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="hi" id="greet">Mittwoch · 20. Juni</p>
+      <p class="h1">Schulter &amp; Arme A</p>
+    </div>
+    <div class="ring">ME</div>
+  </header>
+
+  <div class="daypick" id="daypick"></div>
+
+  <div class="wrap">
+    <div class="seg">
+      <button id="tab-log" class="on" onclick="show('log')">Heute</button>
+      <button id="tab-tr" onclick="show('tr')">Trends</button>
+    </div>
+  </div>
+
+  <div class="wrap" id="view-log">
+    <div class="sumbar">
+      <div><div class="v" id="todaySets">0</div><div class="l">Sätze heute</div></div>
+      <div style="text-align:right"><div class="v" id="todayVol">0</div><div class="l">Tonnage kg</div></div>
+    </div>
+    <div id="exList"></div>
+  </div>
+
+  <div class="wrap hidden" id="view-tr">
+    <div class="stat2">
+      <div class="mini"><div class="l">Körpergewicht ⌀7T</div><div class="v">84,2<small>+0,3</small></div></div>
+      <div class="mini"><div class="l">e1RM Seitheben</div><div class="v">18<small>↑</small></div></div>
+    </div>
+    <div class="flag">
+      <div class="ic">✓</div>
+      <div><p class="t">Progression läuft</p><p class="s">Seitl. Schulter +2 Sätze ggü. Vorwoche, e1RM steigt. Empfehlung: Volumen halten, nächste Woche +1 Satz.</p></div>
+    </div>
+    <p class="sec">Wochenvolumen vs. MAV/MRV</p>
+    <div id="volList"></div>
+    <p class="sec">Hinweis</p>
+    <div class="flag warn">
+      <div class="ic">!</div>
+      <div><p class="t">Brust / Rücken auf Erhalt</p><p class="s">6 Sätze = MEV. Hält die Masse; für leichten Zuwachs bei gleichbleibender Last okay. Nicht weiter senken.</p></div>
+    </div>
+  </div>
+
+  <nav>
+    <button class="on" onclick="show('log')" id="n-log"><span class="gl">▦</span>Training</button>
+    <button onclick="show('tr')" id="n-tr"><span class="gl">◷</span>Trends</button>
+    <button onclick="alert('Readiness-Check: Schlaf, Energie, Körpergewicht — kommt im nächsten Build als Pre-Workout-Screen.')"><span class="gl">♡</span>Readiness</button>
+  </nav>
+
+<script>
+const RIR_EPLEY=(w,r,rir)=>Math.round(w*(1+(Number(r)+Number(rir))/30));
+const LS_KEY="forge_log_v1";
+const PLAN={
+  "Schulter & Arme A":[
+    {n:"Seitheben (Kabel, Lean-away)",m:"Seitl. Schulter",t:"12 kg × 13",w:12,r:13,rir:1,stretch:1},
+    {n:"Schulterdrücken KH",m:"Vord. Schulter",t:"22 kg × 8",w:22,r:8,rir:2},
+    {n:"Overhead Trizeps (Seil)",m:"Trizeps",t:"25 kg × 12",w:25,r:12,rir:1,stretch:1},
+    {n:"Incline Curl",m:"Bizeps",t:"14 kg × 11",w:14,r:11,rir:1,stretch:1},
+    {n:"Reverse Pec Deck",m:"Hint. Schulter",t:"30 kg × 16",w:30,r:16,rir:1},
+    {n:"Schrägbankdrücken (Erhalt)",m:"Brust",t:"24 kg × 9",w:24,r:9,rir:2},
+  ],
+  "Schulter & Arme B":[
+    {n:"Seitheben Kabel (Lean-away)",m:"Seitl. Schulter",t:"11 kg × 14",w:11,r:14,rir:1,stretch:1},
+    {n:"Hammercurls",m:"Bizeps",t:"16 kg × 11",w:16,r:11,rir:1},
+    {n:"Trizeps Pushdown",m:"Trizeps",t:"30 kg × 11",w:30,r:11,rir:1},
+    {n:"Flachbank KH (Erhalt)",m:"Brust",t:"26 kg × 9",w:26,r:9,rir:2},
+    {n:"Rudern Kabel (Erhalt)",m:"Rücken",t:"55 kg × 11",w:55,r:11,rir:2},
+    {n:"Face Pull",m:"Hint. Schulter",t:"25 kg × 18",w:25,r:18,rir:0},
+  ],
+  "Schulter & Arme C":[
+    {n:"Seitheben Maschine (Dropset)",m:"Seitl. Schulter",t:"15 Wdh",w:14,r:16,rir:0},
+    {n:"Preacher Curl",m:"Bizeps",t:"20 kg × 11",w:20,r:11,rir:1,stretch:1},
+    {n:"Skull Crusher",m:"Trizeps",t:"22 kg × 11",w:22,r:11,rir:1,stretch:1},
+    {n:"Rear-Delt Kabel",m:"Hint. Schulter",t:"12 kg × 18",w:12,r:18,rir:0},
+  ],
+  "Beine":[
+    {n:"Beinstrecker",m:"Quadrizeps",t:"60 kg × 14",w:60,r:14,rir:1,stretch:1},
+    {n:"Hackenschmidt",m:"Quadrizeps",t:"80 kg × 10",w:80,r:10,rir:2},
+    {n:"Sitzendes Wadenheben",m:"Waden",t:"40 kg × 14",w:40,r:14,rir:0,stretch:1},
+    {n:"Stehendes Wadenheben",m:"Waden",t:"90 kg × 10",w:90,r:10,rir:0},
+    {n:"Beinbeuger",m:"Hamstrings",t:"45 kg × 11",w:45,r:11,rir:2},
+  ],
+};
+const LANDMARKS={
+  "Seitl. Schulter":{mev:8,mav:24,mrv:40},"Hint. Schulter":{mev:6,mav:17,mrv:35},
+  "Vord. Schulter":{mev:0,mav:12,mrv:16},"Bizeps":{mev:8,mav:19,mrv:35},
+  "Trizeps":{mev:6,mav:19,mrv:30},"Brust":{mev:6,mav:19,mrv:35},"Rücken":{mev:10,mav:19,mrv:35},
+  "Quadrizeps":{mev:8,mav:17,mrv:30},"Waden":{mev:6,mav:19,mrv:25},"Hamstrings":{mev:4,mav:12,mrv:18},
+};
+// Seed weekly volume (other days already done this week) so Trends looks live
+const WEEK_SEED={"Seitl. Schulter":10,"Hint. Schulter":6,"Bizeps":9,"Trizeps":9,"Brust":3,"Rücken":3,"Quadrizeps":4,"Waden":7,"Vord. Schulter":4,"Hamstrings":2};
+
+let DAY="Schulter & Arme A";
+let log=JSON.parse(localStorage.getItem(LS_KEY)||"{}");
+
+function saveSet(day,exi,w,r,rir){
+  const k=day+"||"+exi; (log[k]=log[k]||[]).push({w:+w,r:+r,rir:+rir,e:RIR_EPLEY(w,r,rir)});
+  localStorage.setItem(LS_KEY,JSON.stringify(log)); renderLog();
+}
+function renderDaypick(){
+  document.getElementById("daypick").innerHTML=Object.keys(PLAN).map(d=>
+    `<button class="chip ${d===DAY?'on':''}" onclick="DAY='${d}';renderDaypick();renderLog();document.querySelector('.h1').textContent='${d}'">${d.replace('Schulter & Arme','S&A')}</button>`).join("");
+}
+function renderLog(){
+  const ex=PLAN[DAY]; let html=""; let ts=0,tv=0;
+  ex.forEach((e,i)=>{
+    const sets=log[DAY+"||"+i]||[];
+    sets.forEach(s=>{ts++;tv+=s.w*s.r;});
+    const chips=sets.map((s,j)=>`<span class="setchip">${s.w}×${s.r} <small>@${s.rir}</small> · <b>${s.e}</b></span>`).join("");
+    const last=sets[sets.length-1];
+    html+=`<div class="card">
+      <div class="ex-h"><div><p class="ex-n">${e.n}</p><span class="tag">${e.m}${e.stretch?' · Stretch':''}</span></div>
+      <div class="tgt">Ziel<br>${e.t}</div></div>
+      ${chips?`<div class="sets">${chips}</div>`:''}
+      <div class="steps">
+        ${field('kg',i,'w',last?last.w:e.w)}${field('Reps',i,'r',last?last.r:e.r)}${field('RIR',i,'rir',last?last.rir:e.rir)}
+        <button class="logbtn" onclick="logIt(${i})">+</button>
+      </div></div>`;
+  });
+  document.getElementById("exList").innerHTML=html;
+  document.getElementById("todaySets").textContent=ts;
+  document.getElementById("todayVol").textContent=tv.toLocaleString('de-DE');
+}
+function field(label,i,key,val){
+  return `<div class="fl"><label>${label}</label><div class="step">
+    <button onclick="bump(${i},'${key}',-1)">−</button>
+    <input id="f-${i}-${key}" value="${val}" inputmode="decimal"/>
+    <button onclick="bump(${i},'${key}',1)">+</button></div></div>`;
+}
+function bump(i,key,d){const step=key==='w'?2.5:1;const el=document.getElementById(`f-${i}-${key}`);el.value=Math.round(Math.max(0,(+el.value||0)+d*step)*10)/10;}
+function logIt(i){
+  const w=document.getElementById(`f-${i}-w`).value, r=document.getElementById(`f-${i}-r`).value, rir=document.getElementById(`f-${i}-rir`).value;
+  saveSet(DAY,i,w,r,rir);
+}
+function renderVol(){
+  const todayCount={};
+  Object.keys(log).forEach(k=>{const m=PLAN[k.split("||")[0]]?.[+k.split("||")[1]]?.m; if(m)todayCount[m]=(todayCount[m]||0)+log[k].length;});
+  const order=["Seitl. Schulter","Hint. Schulter","Bizeps","Trizeps","Brust","Rücken","Waden"];
+  document.getElementById("volList").innerHTML=order.map(m=>{
+    const lm=LANDMARKS[m]; const sets=(WEEK_SEED[m]||0)+(todayCount[m]||0);
+    const pct=Math.min(100,sets/lm.mrv*100);
+    let col=var0; let zone="";
+    if(sets<lm.mev){col="var(--blue)";zone="unter MEV";}
+    else if(sets<=lm.mav){col="var(--green)";zone="Wachstum";}
+    else if(sets<lm.mrv){col="var(--amber)";zone="hoch";}
+    else{col="var(--red)";zone="MRV — Deload";}
+    return `<div class="vol-row"><div class="vol-top"><span class="m">${m}</span><span class="c">${sets}/${lm.mav} · ${zone}</span></div>
+      <div class="track"><div class="fill" style="width:${pct}%;background:${col}"></div>
+      <div class="mk" style="left:${lm.mev/lm.mrv*100}%"></div><div class="mk" style="left:${lm.mav/lm.mrv*100}%"></div></div>
+      <div class="lbl">MEV ${lm.mev} · MAV ${lm.mav} · MRV ${lm.mrv}</div></div>`;
+  }).join("");
+}
+const var0="var(--green)";
+function show(v){
+  document.getElementById("view-log").classList.toggle("hidden",v!=="log");
+  document.getElementById("view-tr").classList.toggle("hidden",v!=="tr");
+  document.getElementById("tab-log").classList.toggle("on",v==="log");
+  document.getElementById("tab-tr").classList.toggle("on",v==="tr");
+  document.getElementById("n-log").classList.toggle("on",v==="log");
+  document.getElementById("n-tr").classList.toggle("on",v==="tr");
+  if(v==="tr")renderVol();
+}
+renderDaypick();renderLog();
+</script>
+</body>
+</html>
