@@ -116,7 +116,7 @@
 
   <div class="wrap hidden" id="view-tr">
     <div class="stat2">
-      <div class="mini"><div class="l">Körpergewicht ⌀7T</div><div class="v">84,2<small>+0,3</small></div></div>
+      <div class="mini"><div class="l">Körpergewicht ⌀7T</div><div class="v" id="tr-bw">–</div></div>
       <div class="mini"><div class="l">e1RM Seitheben</div><div class="v">18<small>↑</small></div></div>
     </div>
     <div class="flag">
@@ -142,10 +142,30 @@
     </div>
   </div>
 
+  <div class="wrap hidden" id="view-body">
+    <p class="sec">Körpergewicht eintragen</p>
+    <div class="card">
+      <div class="steps">
+        <div class="fl"><label>kg</label><div class="step"><button onclick="bumpBody('kg',-1)">−</button><input id="b-kg" inputmode="decimal"/><button onclick="bumpBody('kg',1)">+</button></div></div>
+        <div class="fl"><label>Schlaf h</label><div class="step"><button onclick="bumpBody('schlaf',-1)">−</button><input id="b-schlaf" inputmode="decimal"/><button onclick="bumpBody('schlaf',1)">+</button></div></div>
+        <div class="fl"><label>Energie</label><div class="step"><button onclick="bumpBody('energie',-1)">−</button><input id="b-energie" inputmode="decimal"/><button onclick="bumpBody('energie',1)">+</button></div></div>
+        <button class="logbtn" onclick="saveBody()">+</button>
+      </div>
+      <div id="bodyStatus" style="font-size:12px;color:var(--mut);margin-top:8px;"></div>
+    </div>
+    <div class="stat2">
+      <div class="mini"><div class="l">Schnitt 7 Tage</div><div class="v" id="b-avg7">–</div></div>
+      <div class="mini"><div class="l">Rate / Woche</div><div class="v" id="b-rate">–</div></div>
+    </div>
+    <div class="flag"><div class="ic">◷</div><div><p class="t">Zielraten</p><p class="s">Lean-Aufbau: +0,1–0,25 kg/Woche · Diät mit Muskelerhalt: −0,3–0,7 kg/Woche. Bewertung läuft über den geglätteten 7-Tage-Schnitt.</p></div></div>
+    <p class="sec">Verlauf</p>
+    <div id="b-hist"></div>
+  </div>
+
   <nav>
     <button class="on" onclick="show('log')" id="n-log"><span class="gl">▦</span>Training</button>
     <button onclick="show('tr')" id="n-tr"><span class="gl">◷</span>Trends</button>
-    <button onclick="alert('Readiness-Check: Schlaf, Energie, Körpergewicht — kommt im nächsten Build als Pre-Workout-Screen.')"><span class="gl">♡</span>Readiness</button>
+    <button onclick="show('body')" id="n-body"><span class="gl">♡</span>Körper</button>
   </nav>
 
 <script>
@@ -258,16 +278,41 @@ function renderVol(){
       <div class="mk" style="left:${lm.mev/lm.mrv*100}%"></div><div class="mk" style="left:${lm.mav/lm.mrv*100}%"></div></div>
       <div class="lbl">MEV ${lm.mev} · MAV ${lm.mav} · MRV ${lm.mrv}</div></div>`;
   }).join("");
+  var _a7=bodyAvg(0,7);var _bw=document.getElementById("tr-bw");if(_bw)_bw.textContent=_a7!=null?_a7.toFixed(1).replace('.',',')+" kg":"–";
 }
 const var0="var(--green)";
 function show(v){
   document.getElementById("view-log").classList.toggle("hidden",v!=="log");
   document.getElementById("view-tr").classList.toggle("hidden",v!=="tr");
+  document.getElementById("view-body").classList.toggle("hidden",v!=="body");
   document.getElementById("tab-log").classList.toggle("on",v==="log");
   document.getElementById("tab-tr").classList.toggle("on",v==="tr");
   document.getElementById("n-log").classList.toggle("on",v==="log");
   document.getElementById("n-tr").classList.toggle("on",v==="tr");
+  document.getElementById("n-body").classList.toggle("on",v==="body");
   if(v==="tr")renderVol();
+  if(v==="body")renderBody();
+}
+let body=JSON.parse(localStorage.getItem("hc_body")||"[]");
+function bumpBody(k,d){var st=k==='kg'?0.1:(k==='schlaf'?0.5:1);var el=document.getElementById('b-'+k);el.value=Math.round(Math.max(0,(+el.value||0)+d*st)*10)/10;}
+function saveBody(){
+  var kg=+document.getElementById("b-kg").value; if(!kg){document.getElementById("bodyStatus").textContent="Bitte Gewicht eingeben.";return;}
+  var schlaf=document.getElementById("b-schlaf").value, energie=document.getElementById("b-energie").value;
+  var datum=new Date().toISOString().slice(0,10);
+  var rec={datum:datum,kg:kg,schlaf:schlaf?+schlaf:"",energie:energie?+energie:""}; body.push(rec);
+  localStorage.setItem("hc_body",JSON.stringify(body));
+  if(ENDPOINT)syncOne({token:"hc-9f3a7c21",type:"body",datum:datum,gewicht:kg,schlaf:rec.schlaf,energie:rec.energie,notiz:""});
+  document.getElementById("bodyStatus").textContent="Eingetragen ✓";
+  renderBody();
+}
+function bodyAvg(lo,hi){var t=new Date(new Date().toISOString().slice(0,10));var s=0,n=0;body.forEach(function(r){var d=(t-new Date(r.datum))/86400000;if(d>=lo&&d<hi&&r.kg){s+=r.kg;n++;}});return n?s/n:null;}
+function renderBody(){
+  var a7=bodyAvg(0,7),p7=bodyAvg(7,14);
+  document.getElementById("b-avg7").textContent=a7!=null?a7.toFixed(1).replace('.',',')+" kg":"–";
+  var rate=(a7!=null&&p7!=null)?a7-p7:null;
+  document.getElementById("b-rate").textContent=rate!=null?((rate>=0?"+":"")+rate.toFixed(2).replace('.',',')+" kg"):"–";
+  if(body.length)document.getElementById("b-kg").value=body[body.length-1].kg;
+  document.getElementById("b-hist").innerHTML=body.slice(-7).reverse().map(function(r){return '<div style="display:flex;justify-content:space-between;font-size:13px;margin:8px 0;"><span style="font-weight:500;">'+r.datum+'</span><span style="color:var(--mut);">'+r.kg+' kg'+(r.schlaf?' · '+r.schlaf+' h':'')+'</span></div>';}).join('')||'<div style="font-size:12px;color:var(--mut2);">Noch keine Einträge.</div>';
 }
 renderDaypick();renderLog();
 if(document.getElementById("endpoint")){document.getElementById("endpoint").value=ENDPOINT;document.getElementById("syncStatus").textContent=ENDPOINT?"Sync aktiv ✓":"";}
