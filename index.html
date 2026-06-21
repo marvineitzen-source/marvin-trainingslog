@@ -112,6 +112,15 @@
       <div style="text-align:right"><div class="v" id="todayVol">0</div><div class="l">Tonnage kg</div></div>
     </div>
     <div id="exList"></div>
+    <p class="sec">Session abschließen</p>
+    <div class="card">
+      <div style="font-size:12px;color:var(--mut);margin-bottom:10px;line-height:1.5;">Trainingsdauer eingeben → geschätzter Verbrauch (Tag-Typ × Körpergewicht) fließt ins Sheet.</div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;">
+        <div class="fl"><label>Dauer (min)</label><div class="step"><button onclick="bumpDur(-5)">−</button><input id="dur" inputmode="numeric" value="60" oninput="calcKcal()"/><button onclick="bumpDur(5)">+</button></div></div>
+        <button onclick="logSession()" style="height:40px;padding:0 16px;border:0;border-radius:9px;background:var(--acc);color:#fff;font-weight:500;cursor:pointer;">Loggen</button>
+      </div>
+      <div id="sessKcal" style="font-size:13px;margin-top:10px;color:var(--tx);"></div>
+    </div>
   </div>
 
   <div class="wrap hidden" id="view-tr">
@@ -249,6 +258,7 @@ function renderLog(){
   document.getElementById("exList").innerHTML=html;
   document.getElementById("todaySets").textContent=ts;
   document.getElementById("todayVol").textContent=tv.toLocaleString('de-DE');
+  if(typeof calcKcal==='function')calcKcal();
 }
 function field(label,i,key,val){
   return `<div class="fl"><label>${label}</label><div class="step">
@@ -314,7 +324,12 @@ function renderBody(){
   if(body.length)document.getElementById("b-kg").value=body[body.length-1].kg;
   document.getElementById("b-hist").innerHTML=body.slice(-7).reverse().map(function(r){return '<div style="display:flex;justify-content:space-between;font-size:13px;margin:8px 0;"><span style="font-weight:500;">'+r.datum+'</span><span style="color:var(--mut);">'+r.kg+' kg'+(r.schlaf?' · '+r.schlaf+' h':'')+'</span></div>';}).join('')||'<div style="font-size:12px;color:var(--mut2);">Noch keine Einträge.</div>';
 }
-renderDaypick();renderLog();
+const DAY_MET={"Schulter & Arme A":4.5,"Schulter & Arme B":4.5,"Schulter & Arme C":4.0,"Beine":6.0};
+function curBW(){return body.length?body[body.length-1].kg:64;}
+function calcKcal(){var el=document.getElementById("dur");if(!el)return 0;var min=+el.value||0;var met=DAY_MET[DAY]||4.5;var kcal=Math.round(met*curBW()*(min/60));var o=document.getElementById("sessKcal");if(o)o.textContent=min?("≈ "+kcal+" kcal  ·  "+DAY.replace("Schulter & Arme","S&A")+" ("+met+" MET) · "+curBW()+" kg"):"";return kcal;}
+function bumpDur(d){var el=document.getElementById("dur");el.value=Math.max(0,(+el.value||0)+d);calcKcal();}
+function logSession(){var min=+document.getElementById("dur").value||0;if(!min)return;var kcal=calcKcal();var datum=new Date().toISOString().slice(0,10);if(ENDPOINT)syncOne({token:"hc-9f3a7c21",type:"body",datum:datum,dauer:min,trainingskcal:kcal,notiz:DAY});document.getElementById("sessKcal").textContent="Session gespeichert: "+min+" min ≈ "+kcal+" kcal ✓";}
+renderDaypick();renderLog();calcKcal();
 if(document.getElementById("endpoint")){document.getElementById("endpoint").value=ENDPOINT;document.getElementById("syncStatus").textContent=ENDPOINT?"Sync aktiv ✓":"";}
 </script>
 </body>
