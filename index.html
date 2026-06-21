@@ -89,6 +89,13 @@
 </style>
 </head>
 <body>
+  <div id="applock" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:8px;">🔒</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:4px;">Hyper-Coaching</div>
+    <div id="applockmsg" style="font-size:13px;color:var(--mut);margin-bottom:18px;">PIN eingeben</div>
+    <input id="applockpin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN" onkeydown="if(event.key==='Enter')appUnlock()" style="width:220px;text-align:center;background:var(--surface2);border:1px solid var(--line2);border-radius:12px;color:var(--tx);padding:13px;font-size:18px;letter-spacing:4px;outline:none;"/>
+    <button onclick="appUnlock()" style="margin-top:12px;width:220px;padding:13px;border:0;border-radius:12px;background:var(--acc);color:#fff;font-size:15px;font-weight:600;cursor:pointer;">Entsperren</button>
+  </div>
   <header>
     <div>
       <p class="hi" id="greet">Mittwoch · 20. Juni</p>
@@ -228,6 +235,10 @@ const WEEK_SEED={"Seitl. Schulter":10,"Hint. Schulter":6,"Bizeps":9,"Trizeps":9,
 let DAY="Schulter & Arme A";
 let log=JSON.parse(localStorage.getItem(LS_KEY)||"{}");
 let ENDPOINT=localStorage.getItem("hc_endpoint")||"https://script.google.com/macros/s/AKfycbw0HCMO6ZJJ5YjrpTiQZSGJrxsX0_znisalOxuU1bCWC_p1Ikwv2BBeyGJ4YvqOq3LT/exec";
+var APP_PIN="";
+function verifyPin(pin,cb){var fn="hcv"+Date.now();var s=document.createElement("script");window[fn]=function(res){try{delete window[fn];}catch(e){}s.remove();cb(!!(res&&res.ok));};s.onerror=function(){try{delete window[fn];}catch(e){}s.remove();cb(false);};s.src=ENDPOINT+"?action=verify&pin="+encodeURIComponent(pin)+"&callback="+fn;document.body.appendChild(s);}
+function appUnlock(){var el=document.getElementById("applockpin");var p=(el.value||"").trim();if(!p)return;var msg=document.getElementById("applockmsg");msg.textContent="Prüfe …";verifyPin(p,function(ok){if(ok){APP_PIN=p;document.getElementById("applock").style.display="none";}else{msg.textContent="PIN falsch – erneut versuchen";el.value="";el.focus();}});}
+window.addEventListener("load",function(){var el=document.getElementById("applockpin");if(el)el.focus();});
 
 function saveSet(day,exi,w,r,rir){
   const k=day+"||"+exi; const arr=(log[k]=log[k]||[]);
@@ -237,7 +248,7 @@ function saveSet(day,exi,w,r,rir){
   renderLog();
 }
 function payloadFor(day,exi,setNo,s){const e=PLAN[day][exi];return{token:"hc-9f3a7c21",datum:new Date().toISOString().slice(0,10),tag:day,uebung:e.n,muskel:e.m,satz:setNo,gewicht:s.w,reps:s.r,rir:s.rir,e1rm:s.e,notiz:e.stretch?"Stretch":""};}
-function syncOne(p){if(!ENDPOINT)return;try{fetch(ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)});}catch(err){}}
+function syncOne(p){if(!ENDPOINT)return;p.pin=APP_PIN;try{fetch(ENDPOINT,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(p)});}catch(err){}}
 function saveEndpoint(){ENDPOINT=document.getElementById("endpoint").value.trim();localStorage.setItem("hc_endpoint",ENDPOINT);document.getElementById("syncStatus").textContent=ENDPOINT?"Sync aktiv ✓":"Keine URL gesetzt";}
 function syncAll(){if(!ENDPOINT){document.getElementById("syncStatus").textContent="Erst URL speichern.";return;}let n=0;Object.keys(log).forEach(k=>{const p=k.split("||");log[k].forEach((s,idx)=>{if(!s.synced){syncOne(payloadFor(p[0],+p[1],idx+1,s));s.synced=true;n++;}});});localStorage.setItem(LS_KEY,JSON.stringify(log));document.getElementById("syncStatus").textContent=n+" Sätze gesynct ✓";}
 function renderDaypick(){
@@ -309,7 +320,7 @@ function show(v){
   document.getElementById("n-coach").classList.toggle("on",v==="coach");
   if(v==="tr")renderVol();
   if(v==="body")renderBody();
-  if(v==="coach"){var f=document.getElementById("coachFrame");if(ENDPOINT&&!f.src){f.src=ENDPOINT;}}
+  if(v==="coach"){var f=document.getElementById("coachFrame");if(ENDPOINT&&!f.src){f.src=ENDPOINT+"#pin="+encodeURIComponent(APP_PIN);}}
 }
 let body=JSON.parse(localStorage.getItem("hc_body")||"[]");
 function bumpBody(k,d){var st=k==='kg'?0.1:(k==='schlaf'?0.5:1);var el=document.getElementById('b-'+k);el.value=Math.round(Math.max(0,(+el.value||0)+d*st)*10)/10;}
