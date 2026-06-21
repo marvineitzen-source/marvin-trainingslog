@@ -1,5 +1,6 @@
 /**
- * Hyper-Coaching · Trainingslog — Sheet-Sync + Oura-Pull + Coach-Chat (Version 7)
+ * Hyper-Coaching · Trainingslog — Sheet-Sync + Oura-Pull + Coach-Chat (Version 8)
+ * v8: App-weites PIN-Gate. doGet?action=verify (JSONP) prueft PIN; doPost verlangt PIN; Coach liest PIN aus iframe-#hash.
  *
  * Tab 1 (Untitled): Trainingssätze (append).
  * Tab "Koerper": 1 Zeile/Tag (Upsert by Datum) mit Gewicht, Schlaf, Tiefschlaf, REM,
@@ -28,6 +29,8 @@ function doPost(e) {
   try {
     const d = JSON.parse(e.postData.contents);
     if (d.token !== TOKEN) return json({ ok: false, error: 'auth' });
+    const savedPin = PropertiesService.getScriptProperties().getProperty('COACH_PIN');
+    if (!savedPin || String(d.pin || '') !== savedPin) return json({ ok: false, error: 'pin' });
     if (d.type === 'body') {
       upsertKoerper(d.datum, { kg:d.gewicht, schlaf:d.schlaf, energie:d.energie, dauer:d.dauer, trainingskcal:d.trainingskcal, notiz:d.notiz });
     } else {
@@ -249,7 +252,13 @@ function coachChat(message, history, pin) {
 
 // ============================ WEB (doGet = Chat-Seite) ============================
 
-function doGet() {
+function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'verify') {
+    const ok = String(e.parameter.pin || '') === (PropertiesService.getScriptProperties().getProperty('COACH_PIN') || ' ');
+    const cb = e.parameter.callback || 'cb';
+    return ContentService.createTextOutput(cb + '(' + JSON.stringify({ ok: ok }) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
   return HtmlService.createHtmlOutput(CHAT_HTML)
     .setTitle('Hyper-Coaching · Coach')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, viewport-fit=cover')
@@ -311,6 +320,7 @@ const CHAT_HTML = [
 'function sendMsg(){if(busy)return;var t=inEl.value.trim();if(!t)return;inEl.value="";grow();add("user",t);busy=true;sendEl.disabled=true;',
 'var th=document.createElement("div");th.className="msg a";th.innerHTML="<div class=\\"b\\"><span class=\\"dot\\"></span><span class=\\"dot\\"></span><span class=\\"dot\\"></span></div>";logEl.appendChild(th);logEl.scrollTop=logEl.scrollHeight;',
 'google.script.run.withSuccessHandler(function(r){th.remove();busy=false;sendEl.disabled=false;if(r==="__PINFAIL__"){localStorage.removeItem("hc_pin");showLock("PIN falsch — bitte erneut eingeben");return;}add("assistant",r);hist.push({role:"user",content:t});hist.push({role:"assistant",content:r});if(hist.length>12)hist=hist.slice(hist.length-12);}).withFailureHandler(function(e){th.remove();add("assistant","Fehler: "+e.message);busy=false;sendEl.disabled=false;}).coachChat(t,hist,getPin());}',
+'(function(){var m=(location.hash||"").match(/pin=([^&]+)/);if(m){try{localStorage.setItem("hc_pin",decodeURIComponent(m[1]));}catch(e){}}})();',
 'if(!getPin())showLock();',
 '<\/script>',
 '</body></html>'
