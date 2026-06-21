@@ -1,5 +1,5 @@
 /**
- * Hyper-Coaching · Trainingslog — Sheet-Sync + Oura-Pull + Coach-Chat (Version 6)
+ * Hyper-Coaching · Trainingslog — Sheet-Sync + Oura-Pull + Coach-Chat (Version 7)
  *
  * Tab 1 (Untitled): Trainingssätze (append).
  * Tab "Koerper": 1 Zeile/Tag (Upsert by Datum) mit Gewicht, Schlaf, Tiefschlaf, REM,
@@ -12,7 +12,7 @@
  *   GitHub Pages bindet sie als iframe ein. coachChat() baut System-Kontext aus
  *   COACH_WISSEN + letzten Tagen Sheet-Daten und ruft OpenAI GPT-5.5.
  *
- * Setup: Skripteigenschaften OURA_TOKEN und OPENAI_API_KEY setzen, dann `setup` einmal ausfuehren.
+ * Setup: Skripteigenschaften OURA_TOKEN, OPENAI_API_KEY und COACH_PIN setzen, dann `setup` einmal ausfuehren.
  */
 
 const SHEET_ID = '1TKdLxnRlmNg0YYr5bubD5HByE3IXw2EsO8fKq9eXfJ8';
@@ -212,9 +212,13 @@ function buildCoachContext() {
   return out.join('\n');
 }
 
-// Wird vom Chat (google.script.run) aufgerufen.
-function coachChat(message, history) {
-  const key = PropertiesService.getScriptProperties().getProperty('OPENAI_API_KEY');
+// Wird vom Chat (google.script.run) aufgerufen. PIN-Gate schuetzt vor fremder Nutzung.
+function coachChat(message, history, pin) {
+  const props = PropertiesService.getScriptProperties();
+  const savedPin = props.getProperty('COACH_PIN');
+  if (!savedPin) return 'Setup: Bitte Skripteigenschaft COACH_PIN setzen.';
+  if (String(pin || '') !== savedPin) return '__PINFAIL__';
+  const key = props.getProperty('OPENAI_API_KEY');
   if (!key) return 'Fehler: OPENAI_API_KEY fehlt in den Skripteigenschaften.';
   const sys = COACH_WISSEN + '\n\n## Aktuelle Live-Daten (aus dem Sheet)\n' + buildCoachContext();
   const msgs = [{ role: 'system', content: sys }];
@@ -274,6 +278,9 @@ const CHAT_HTML = [
 '.dot{display:inline-block;width:6px;height:6px;margin:0 1px;border-radius:50%;background:#8B93A7;animation:bl 1s infinite}',
 '.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}',
 '@keyframes bl{0%,80%,100%{opacity:.3}40%{opacity:1}}',
+'#lock{position:fixed;inset:0;background:#0B0E14;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;text-align:center}',
+'#lock input{width:200px;text-align:center;background:#1B2230;border:1px solid rgba(255,255,255,.12);border-radius:12px;color:#EAecef;padding:12px;font-size:18px;letter-spacing:3px;outline:none}',
+'#lock button{margin-top:12px;width:200px;padding:12px;border:0;border-radius:12px;background:#7C83F7;color:#fff;font-size:15px;font-weight:500;cursor:pointer}',
 '</style>',
 '<div id="wrap">',
 '<div id="log">',
@@ -290,16 +297,21 @@ const CHAT_HTML = [
 '<button id="send" onclick="sendMsg()">&#10148;</button>',
 '</div>',
 '</div>',
+'<div id="lock"><div style="font-size:34px;margin-bottom:6px;">🔒</div><div style="font-size:16px;font-weight:600;margin-bottom:4px;">Hyper-Coaching</div><div id="lockmsg" style="font-size:13px;color:#8B93A7;margin-bottom:16px;">PIN eingeben</div><input id="pin" type="password" inputmode="numeric" placeholder="PIN" onkeydown="if(event.key===\'Enter\')unlock()"/><button onclick="unlock()">Entsperren</button></div>',
 '<script>',
 'var hist=[];var busy=false;',
 'var logEl=document.getElementById("log");var inEl=document.getElementById("in");var sendEl=document.getElementById("send");',
+'function getPin(){return localStorage.getItem("hc_pin")||"";}',
+'function showLock(msg){document.getElementById("lockmsg").textContent=msg||"PIN eingeben";document.getElementById("lock").style.display="flex";setTimeout(function(){var p=document.getElementById("pin");if(p)p.focus();},100);}',
+'function unlock(){var p=document.getElementById("pin").value.trim();if(!p)return;localStorage.setItem("hc_pin",p);document.getElementById("pin").value="";document.getElementById("lock").style.display="none";}',
 'function grow(){inEl.style.height="auto";inEl.style.height=Math.min(inEl.scrollHeight,120)+"px";}',
 'function kd(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg();}}',
 'function quick(b){inEl.value=b.textContent;sendMsg();}',
 'function add(role,text){var d=document.createElement("div");d.className="msg "+(role==="user"?"u":"a");var b=document.createElement("div");b.className="b";b.textContent=text;d.appendChild(b);logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;return b;}',
 'function sendMsg(){if(busy)return;var t=inEl.value.trim();if(!t)return;inEl.value="";grow();add("user",t);busy=true;sendEl.disabled=true;',
 'var th=document.createElement("div");th.className="msg a";th.innerHTML="<div class=\\"b\\"><span class=\\"dot\\"></span><span class=\\"dot\\"></span><span class=\\"dot\\"></span></div>";logEl.appendChild(th);logEl.scrollTop=logEl.scrollHeight;',
-'google.script.run.withSuccessHandler(function(r){th.remove();add("assistant",r);hist.push({role:"user",content:t});hist.push({role:"assistant",content:r});if(hist.length>12)hist=hist.slice(hist.length-12);busy=false;sendEl.disabled=false;}).withFailureHandler(function(e){th.remove();add("assistant","Fehler: "+e.message);busy=false;sendEl.disabled=false;}).coachChat(t,hist);}',
+'google.script.run.withSuccessHandler(function(r){th.remove();busy=false;sendEl.disabled=false;if(r==="__PINFAIL__"){localStorage.removeItem("hc_pin");showLock("PIN falsch — bitte erneut eingeben");return;}add("assistant",r);hist.push({role:"user",content:t});hist.push({role:"assistant",content:r});if(hist.length>12)hist=hist.slice(hist.length-12);}).withFailureHandler(function(e){th.remove();add("assistant","Fehler: "+e.message);busy=false;sendEl.disabled=false;}).coachChat(t,hist,getPin());}',
+'if(!getPin())showLock();',
 '<\/script>',
 '</body></html>'
 ].join('\n');
